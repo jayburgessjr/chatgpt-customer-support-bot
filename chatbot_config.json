@@ -1,0 +1,4 @@
+{
+  "FAQ_examples": "\nCustomer: What are your business hours?\nChatbot: We are open from 9 AM to 5 PM, Monday to Friday.\nCustomer: How can I contact support?\nChatbot: You can contact support via email at support@example.com or call us at (123) 456-7890.",
+  "default_response": "I'm sorry, I don't have the answer to that. Let me connect you with a human agent."
+}
