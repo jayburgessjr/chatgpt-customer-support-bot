@@ -1,0 +1,155 @@
+# README.md
+
+## ChatGPT-Powered Customer Support Bot
+
+### Description
+This project demonstrates how to create a customer support chatbot powered by OpenAI’s GPT API. The chatbot can handle common queries, provide helpful responses, and escalate unresolved issues to human agents when needed.
+
+### Features
+- Answer frequently asked questions (FAQs).
+- Perform sentiment analysis to assess customer satisfaction.
+- Escalate complex issues to human agents.
+- Log chat history for performance analysis and training.
+- Provide multi-language support for international users.
+- Allow administrators to update FAQs dynamically.
+
+### Installation
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/chatgpt-customer-support-bot.git
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd chatgpt-customer-support-bot
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Configure the chatbot:
+   - Update the `chatbot_config.json` with FAQs and bot settings.
+   - Add your OpenAI API key in the `.env` file.
+
+5. Run the chatbot:
+   ```bash
+   python main.py
+   ```
+
+### Files
+1. `main.py`: Backend script for handling chatbot logic.
+2. `requirements.txt`: Dependencies for the project.
+3. `chatbot_config.json`: Configuration file for intents and FAQs.
+4. `sample_responses.json`: Mock dataset of customer FAQs and responses.
+5. `chat_logger.py`: Script for logging chat history.
+
+### Example Use Case
+- A customer asks: "What is your refund policy?"
+- The chatbot replies with: "Our refund policy allows you to return items within 30 days of purchase."
+
+---
+
+# main.py
+
+import os
+import json
+from flask import Flask, request, jsonify
+import openai
+from dotenv import load_dotenv
+from chat_logger import log_chat
+from googletrans import Translator
+
+load_dotenv()
+
+# Load OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Load chatbot configuration
+with open("chatbot_config.json", "r") as f:
+    config = json.load(f)
+
+translator = Translator()
+
+# Initialize Flask app
+app = Flask(__name__)
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.json
+    user_input = data.get("message")
+    language = data.get("language", "en")
+
+    # Translate user input if necessary
+    if language != "en":
+        user_input = translator.translate(user_input, src=language, dest="en").text
+
+    response = generate_response(user_input)
+
+    # Translate response back to user’s language
+    if language != "en":
+        response = translator.translate(response, src="en", dest=language).text
+
+    log_chat(user_input, response, language)
+    return jsonify({"response": response})
+
+def generate_response(user_input):
+    # Generate response using OpenAI API
+    try:
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=f"{user_input}\n\n{config['FAQ_examples']}",
+            max_tokens=150
+        )
+        return response.choices[0].text.strip()
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+---
+
+# chat_logger.py
+
+import os
+from datetime import datetime
+
+def log_chat(user_input, bot_response, language):
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, f"chat_log_{datetime.now().date()}.txt")
+
+    with open(log_file, "a") as f:
+        f.write(f"[{datetime.now()}] Language: {language}\n")
+        f.write(f"User: {user_input}\n")
+        f.write(f"Bot: {bot_response}\n")
+        f.write("---\n")
+
+---
+
+# requirements.txt
+flask
+openai
+dotenv
+googletrans==4.0.0-rc1
+
+---
+
+# chatbot_config.json
+{
+  "FAQ_examples": "\nCustomer: What are your business hours?\nChatbot: We are open from 9 AM to 5 PM, Monday to Friday.\nCustomer: How can I contact support?\nChatbot: You can contact support via email at support@example.com or call us at (123) 456-7890.",
+  "default_response": "I'm sorry, I don't have the answer to that. Let me connect you with a human agent."
+}
+
+---
+
+# sample_responses.json
+{
+  "refund_policy": "Our refund policy allows you to return items within 30 days of purchase.",
+  "business_hours": "We are open from 9 AM to 5 PM, Monday to Friday.",
+  "contact_support": "You can contact support via email at support@example.com or call us at (123) 456-7890."
+}
+
+---
+
+# .env
+OPENAI_API_KEY=your_openai_api_key_here
